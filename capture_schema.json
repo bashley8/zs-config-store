@@ -1,0 +1,381 @@
+{
+  "_meta": {
+    "schema_version": "1",
+    "created": "2026-03-24",
+    "owner": "Bryan Ashley",
+    "description": "Capture schema for the AI work system. Defines two layers: inbox (raw capture, minimal friction) and reference (structured, graduated items). Serves all downstream systems via the system[] field.",
+    "systems": ["zscaler", "tl"],
+    "layers": ["inbox", "reference"]
+  },
+
+  "inbox_item": {
+    "_description": "Raw capture layer. Near-zero friction. Applied at capture time — Plaud pin output, to-do list, quick notes, PDFs. No structure required beyond these fields. Action flag ensures nothing drops. Items graduate to reference layer during the periodic graduation pass.",
+    "fields": {
+      "id": {
+        "type": "string",
+        "format": "YYYYMMDD-NNN",
+        "example": "20260324-001",
+        "required": true,
+        "notes": "Generated at capture time. Sequential within a day. Stable — never reassigned."
+      },
+      "date": {
+        "type": "string",
+        "format": "ISO 8601",
+        "example": "2026-03-24",
+        "required": true
+      },
+      "source": {
+        "type": "string",
+        "example": "Plaud pin",
+        "required": true,
+        "notes": "Where this came from. Free text — Plaud pin, to-do list, Zoom, email, etc."
+      },
+      "type_hint": {
+        "type": "string",
+        "enum": ["transcript", "field_observation", "task", "content_signal", "learning", "question", "strategic_observation", "unknown"],
+        "required": false,
+        "notes": "Best guess at type. Can be wrong — corrected during graduation. Use 'unknown' when unclear."
+      },
+      "content": {
+        "type": "string",
+        "required": true,
+        "notes": "Raw unprocessed content. Full transcript text, raw notes, paste of to-do list, etc. No cleanup required."
+      },
+      "action_flag": {
+        "type": "boolean",
+        "required": true,
+        "notes": "True if this item contains anything requiring action. Ensures nothing drops before graduation."
+      },
+      "status": {
+        "type": "string",
+        "enum": ["inbox", "graduated", "discarded"],
+        "default": "inbox",
+        "required": true
+      }
+    }
+  },
+
+  "reference_items": {
+    "_description": "Structured reference layer. Applied during graduation pass — items promoted from inbox with full field definitions. Seven types covering all observed capture patterns. All reference items share universal fields plus type-specific fields.",
+
+    "universal_fields": {
+      "_description": "Present on every reference item regardless of type.",
+      "id": {
+        "type": "string",
+        "format": "YYYYMMDD-NNN",
+        "required": true,
+        "notes": "Stable ID. Carried forward from inbox if graduated from inbox item, or generated fresh if created directly in reference layer."
+      },
+      "type": {
+        "type": "string",
+        "enum": ["transcript", "field_observation", "task", "content_signal", "learning", "question", "strategic_observation"],
+        "required": true
+      },
+      "date": {
+        "type": "string",
+        "format": "ISO 8601",
+        "required": true
+      },
+      "source_type": {
+        "type": "string",
+        "enum": ["corpus", "capture"],
+        "required": true,
+        "notes": "corpus = automatically polled external content (Zscaler product docs, blogs, case studies). capture = manually captured personal items (transcripts, notes, observations). Retrieval draws from both simultaneously."
+      },
+      "system": {
+        "type": "array",
+        "items": "string",
+        "example": ["zscaler"],
+        "valid_values": ["zscaler", "tl"],
+        "required": true,
+        "notes": "Which downstream system(s) this item serves. Can serve multiple. New systems added here as they are created — no schema change required."
+      },
+      "source_transcript_id": {
+        "type": "string",
+        "required": false,
+        "notes": "ID of the inbox transcript item this was extracted from, if applicable. Closes the evidence trail back to the original conversation."
+      }
+    },
+
+    "types": {
+
+      "transcript": {
+        "_description": "Archive record of a full recorded conversation. Raw transcripts do not enter the reference layer directly — they must go through a graduation pass transcript analysis session first, which extracts learnings, field observations, strategic observations, and tasks as separate items. The transcript item itself is the archive anchor those items point back to via source_transcript_id.",
+        "fields": {
+          "source": {
+            "type": "string",
+            "example": "Plaud pin — lunch with Terry Mays",
+            "required": true
+          },
+          "participants": {
+            "type": "array",
+            "items": "string",
+            "example": ["Principal Architect (self)", "SecOps Overlay SE"],
+            "required": true,
+            "notes": "Roles only. No customer names or account identifiers per data hygiene policy."
+          },
+          "context": {
+            "type": "string",
+            "example": "Intro meeting — SecOps overlay alignment and GTM collaboration",
+            "required": true,
+            "notes": "One line describing what this meeting was."
+          },
+          "raw_content": {
+            "type": "string",
+            "required": true,
+            "notes": "Full transcript text."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["raw", "extracted"],
+            "required": true,
+            "notes": "raw = not yet processed. extracted = graduation pass complete, child items exist."
+          }
+        }
+      },
+
+      "field_observation": {
+        "_description": "What happened or what was said. Factual record of an event, conversation, or experience. Distinct from strategic_observation, which is what you think it means.",
+        "fields": {
+          "source": {
+            "type": "string",
+            "example": "Lunch with Terry Mays — 2026-03-24",
+            "required": true
+          },
+          "observation": {
+            "type": "string",
+            "required": true,
+            "notes": "What happened or what was said. Factual, not interpretive."
+          },
+          "significance": {
+            "type": "string",
+            "required": true,
+            "notes": "Why this matters. One line."
+          },
+          "tags": {
+            "type": "array",
+            "items": "string",
+            "example": ["gtm", "bucket5", "overlay-motion", "renewal-strategy"],
+            "required": false
+          }
+        }
+      },
+
+      "task": {
+        "_description": "Something that needs to happen. Owner is self or other. Blocked tasks stay in the list with blocked_by populated — they do not get discarded.",
+        "fields": {
+          "action": {
+            "type": "string",
+            "example": "Send Z Command link to Terry Mays",
+            "required": true
+          },
+          "owner": {
+            "type": "string",
+            "enum": ["self", "other"],
+            "required": true
+          },
+          "other_owner": {
+            "type": "string",
+            "required": false,
+            "notes": "Name or role if owner is other."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "in_progress", "done", "blocked"],
+            "required": true
+          },
+          "blocked_by": {
+            "type": "string",
+            "required": false,
+            "notes": "What is blocking this task. Required when status is blocked."
+          },
+          "source": {
+            "type": "string",
+            "example": "Terry Mays lunch action items",
+            "required": true
+          },
+          "date_captured": {
+            "type": "string",
+            "format": "ISO 8601",
+            "required": true
+          }
+        }
+      },
+
+      "content_signal": {
+        "_description": "External resource to evaluate or track. A deck someone sent, a lightboard video, a tool to review, a URL of interest. Distinct from learning — this is a resource to consume, not knowledge already consumed.",
+        "fields": {
+          "title": {
+            "type": "string",
+            "example": "Brian Dietz lightboard — Zero Trust Cloud",
+            "required": true
+          },
+          "url": {
+            "type": "string",
+            "required": false
+          },
+          "format": {
+            "type": "string",
+            "enum": ["deck", "video", "article", "tool", "resource", "other"],
+            "required": true
+          },
+          "description": {
+            "type": "string",
+            "required": true,
+            "notes": "One line — what it is."
+          },
+          "relevance": {
+            "type": "string",
+            "required": true,
+            "notes": "Why this matters to you specifically."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["to_review", "reviewed", "ingested"],
+            "required": true
+          }
+        }
+      },
+
+      "learning": {
+        "_description": "Product, competitive, or domain knowledge acquired. Feeds the Knowledge Map. Confidence reflects current depth — expected to increase over time as exposure accumulates.",
+        "fields": {
+          "source": {
+            "type": "string",
+            "example": "Terry Mays lunch — Flex pricing explanation",
+            "required": true
+          },
+          "domain": {
+            "type": "string",
+            "example": "Flex pricing model",
+            "required": true,
+            "notes": "Specific domain area. Maps to Knowledge Map categories in tracker."
+          },
+          "content": {
+            "type": "string",
+            "required": true,
+            "notes": "The actual knowledge. Written to be retrievable and usable, not just noted."
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["low", "medium", "high"],
+            "required": true,
+            "notes": "Current depth. Low = heard it once, need more exposure. High = can explain and defend it."
+          },
+          "knowledge_map_area": {
+            "type": "string",
+            "example": "Commercial / Pricing Models",
+            "required": true,
+            "notes": "Maps to tracker Knowledge Map. Used to update Knowledge Map confidence levels during graduation pass."
+          }
+        }
+      },
+
+      "question": {
+        "_description": "Something that needs an answer before something else can happen, or to close a knowledge gap. Distinct from task — there is no unilateral action Bryan can take. Resolution path determines routing: self-resolvable questions route to research or corpus query; other-dependent questions route to a task with an owner.",
+        "fields": {
+          "question": {
+            "type": "string",
+            "example": "Does Flex pricing have a minimum annual commitment threshold?",
+            "required": true
+          },
+          "resolution_path": {
+            "type": "string",
+            "enum": ["self", "other"],
+            "required": true,
+            "notes": "self = can be answered through research, corpus query, or documentation. other = requires a specific person to answer."
+          },
+          "owner": {
+            "type": "string",
+            "required": false,
+            "notes": "Name or role if resolution_path is other."
+          },
+          "context": {
+            "type": "string",
+            "required": true,
+            "notes": "Why this question matters. What it unblocks."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "answered"],
+            "required": true
+          },
+          "answer": {
+            "type": "string",
+            "required": false,
+            "notes": "Populated when answered. Question is not removed from reference layer — the answer is recorded inline."
+          }
+        }
+      },
+
+      "strategic_observation": {
+        "_description": "Synthesized insight that emerged from experience, conversation, or pattern recognition. Distinct from field_observation (what happened) — this is what you think it means and why it matters. Confidence tracks the lifecycle from working hypothesis to validated position. Supporting items provide the evidence trail that makes the observation defensible.",
+        "fields": {
+          "source": {
+            "type": "string",
+            "example": "Emerged from Terry Mays lunch + Brian Pavain call",
+            "required": true,
+            "notes": "What triggered this observation. Can be a single event or a pattern across multiple."
+          },
+          "observation": {
+            "type": "string",
+            "required": true,
+            "notes": "The insight. Written as a defensible position, not a vague note."
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["hypothesis", "emerging", "validated"],
+            "required": true,
+            "notes": "hypothesis = single source or first observation. emerging = multiple independent sources or repeated pattern. validated = tested in customer or field engagement with positive result."
+          },
+          "supporting_item_ids": {
+            "type": "array",
+            "items": "string",
+            "example": ["20260324-003", "20260324-007"],
+            "required": false,
+            "notes": "IDs of field observations, learnings, or other items that contribute to this observation. This is the evidence trail. Add IDs as new supporting evidence accumulates — confidence level should increase as this list grows."
+          },
+          "potential_applications": {
+            "type": "array",
+            "items": "string",
+            "enum": ["thought_leadership", "customer_engagement", "field_awareness", "competitive_positioning", "account_prep"],
+            "required": true,
+            "notes": "Where this observation creates value. Drives routing to the right downstream system."
+          }
+        }
+      }
+
+    }
+  },
+
+  "task_file": {
+    "_description": "Standalone operational file. Produced during graduation pass as a Claude artifact, pushed to GitHub by Bryan, read via raw GET endpoint at session start. Operates independently of R2 — the task file is always current even if graduation pass has not run recently. Updated every graduation pass as a required output.",
+    "format": "markdown",
+    "location": "GitHub raw file — path TBD",
+    "fields": {
+      "last_updated": "ISO date",
+      "open_tasks": "array of task items with status open or in_progress",
+      "open_questions": "array of question items with status open",
+      "completed_since_last_pass": "array of items closed in the most recent graduation pass — cleared each pass"
+    }
+  },
+
+  "graduation_pass": {
+    "_description": "The periodic processing session that moves items from inbox to reference layer. Two tracks that run in the same session. Defined output required before session ends — graduation pass is not complete until the task file artifact is produced.",
+    "cadence": "Every 2-3 days, approximately 45-60 minutes",
+    "tracks": {
+      "fast_track": {
+        "description": "Tasks and questions captured manually during the day. Straight to task file and reference layer. No analysis required.",
+        "time": "~5 minutes"
+      },
+      "transcript_track": {
+        "description": "Transcript analysis session with Claude. Drop transcript, Claude does inductive read, extracts typed reference items, flags evidence connections to existing strategic observations. Bryan reacts and confirms — not taking notes, not re-engaging with the content analytically.",
+        "time": "~40-50 minutes per transcript",
+        "drift_guard": "Session opens with defined output list. Session ends when output list is closed — not when thinking feels done.",
+        "required_output": "List of graduated reference items + updated task file artifact"
+      }
+    },
+    "merge_step": "Fast track items and transcript track items graduate in the same batch. Task file artifact produced at end of combined pass.",
+    "knowledge_map_update": "Learnings graduated in this pass that affect Knowledge Map confidence levels are flagged for tracker update. Open question — resolution deferred to Worker endpoint build session."
+  }
+}
