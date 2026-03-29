@@ -1,0 +1,69 @@
+# Board State
+
+**last_updated:** 2026-03-29
+**source:** Prioritize Task List session 2026-03-29
+
+| id | priority |
+|----|----------|
+| 328-043 | today |
+| 328-019 | today |
+| 328-018 | today |
+| 328-030 | today |
+| 328-029 | today |
+| 324-014 | today |
+| 328-028 | today |
+| 328-046 | today |
+| 328-016 | this_week |
+| 328-017 | this_week |
+| 328-020 | this_week |
+| 328-022 | this_week |
+| 328-023 | this_week |
+| 328-021 | this_week |
+| 328-006 | this_week |
+| 328-001 | this_week |
+| 328-010 | this_week |
+| 328-015 | this_week |
+| 328-011 | this_week |
+| 328-014 | this_week |
+| 328-039 | this_week |
+| 328-040 | this_week |
+| 328-037 | this_week |
+| 328-038 | this_week |
+| 324-018 | this_week |
+| 328-024 | this_week |
+| 328-042 | this_week |
+| 324-003 | this_week |
+| 328-044 | next_week |
+| 328-041 | next_week |
+| 328-007 | next_week |
+| 328-002 | next_week |
+| 328-003 | next_week |
+| 328-004 | next_week |
+| 328-005 | next_week |
+| 328-008 | next_week |
+| 328-009 | next_week |
+| 328-012 | next_week |
+| 328-013 | next_week |
+| 328-031 | next_week |
+| 328-032 | next_week |
+| 328-033 | next_week |
+| 328-034 | next_week |
+| 328-035 | next_week |
+| 328-036 | next_week |
+| 328-025 | next_week |
+| 328-026 | next_week |
+| 328-027 | next_week |
+| 324-002 | next_week |
+| 324-017 | backlog |
+| 328-045 | backlog |
+| 324-005 | backlog |
+| 324-004 | backlog |
+| 324-006 | backlog |
+| 324-007 | backlog |
+| 324-008 | backlog |
+| 324-009 | backlog |
+| 324-010 | backlog |
+| 324-011 | backlog |
+| 324-013 | backlog |
+| 324-015 | backlog |
+| 324-016 | backlog |
